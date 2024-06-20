@@ -15,7 +15,7 @@ to answer an incoming call and start recording using media streaming.
 - Create an Azure account with an active subscription. For details, see [Create an account for free](https://azure.microsoft.com/free/)
 - [Visual Studio (2022 17.4)](https://visualstudio.microsoft.com/vs/) and above
 - Enable (Visual Studio Web Tunnels) option in Visual Studio [https://devblogs.microsoft.com/visualstudio/public-preview-of-dev-tunnels-in-visual-studio-for-asp-net-core-projects/]
-- [.NET 7](https://dotnet.microsoft.com/en-us/download/dotnet/7.0) and above
+- [.NET 8](https://dotnet.microsoft.com/en-us/download/dotnet/8.0) and above
 - Create an Azure Communication Services resource. For details, see [Create an Azure Communication Resource](https://docs.microsoft.com/azure/communication-services/quickstarts/create-communication-resource). You'll need to record your resource connection string for this sample.
 - Create an [Azure Storage resource](https://azure.microsoft.com/en-us/products/cognitive-services/)
 
@@ -29,8 +29,8 @@ to answer an incoming call and start recording using media streaming.
 3. Fillout the following properties in UserSecrets:
 ```
 {
-  "CallbackUri": "https://...ngrok.io",
-  "WebsocketUri": "wss://.../ws",
+  "CallbackUri": "https://<CALLBACK URI>",
+  "WebsocketUri": "wss://<CALLBACK URI>/ws",
   "ACSConnectionString": "<YOUR_ACS_CONN_STRING>",
   "StorageConnectionString": "<YOUR_STORAGE_STRING>",
   "BotMri": "<8_ACS_MRI>",

@@ -40,6 +40,18 @@ namespace RecordingStreaming.Services
             return blobClient.Uri;
         }
 
+        public async Task<string> DownloadTo(string downloadUri, string? fileName = null)
+        {
+            var blobFileName = downloadUri.Split("/").LastOrDefault();
+            var blobClient = _blobContainerClient.GetBlobClient(blobFileName);
+            var downloadFileName = $"recordings/download-{fileName ?? blobFileName}";
+            await using var fileStream = File.Create(downloadFileName);
+            using var readBlob = await blobClient.DownloadToAsync(fileStream);
+
+            _logger.LogInformation($"Recording {blobFileName} downloaded to {downloadFileName}.");
+            return downloadFileName;
+        }
+
         public async Task<(bool, Uri)> Exists(string fileName)
         {
             var blobClient = _blobContainerClient.GetBlobClient(fileName);

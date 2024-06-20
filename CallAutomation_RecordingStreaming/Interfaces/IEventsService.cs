@@ -6,6 +6,8 @@ namespace RecordingStreaming.Interfaces
 {
     public interface IEventsService
     {
-        Task SendRecordingStatusUpdatedEvent(AcsRecordingFileStatusUpdatedEventData recordingFileStatusUpdated, string serverCallId, Uri target);
+        Task SendRecordingStatusUpdatedEvent(string serverCallId, string callId, string contentLocation, string documentId);
+
+        Task SendRecordingStartedEvent(string serverCallId);
     }
 }

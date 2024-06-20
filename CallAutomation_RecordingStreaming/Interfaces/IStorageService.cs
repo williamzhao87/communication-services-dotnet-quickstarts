@@ -10,5 +10,7 @@ namespace RecordingStreaming.Interfaces
         public Task<Uri> UploadTo(string sourceFilePath, string? fileName = null);
 
         public Task<(bool, Uri)> Exists(string fileName);
+
+        Task<string> DownloadTo(string downloadUri, string? fileName = null);
     }
 }

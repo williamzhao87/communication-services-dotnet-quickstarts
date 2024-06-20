@@ -13,6 +13,10 @@ namespace RecordingStreaming.Models
 
         public string? SubscriptionId { get; set; }
 
+        public string? RecordingId { get; set; }
+
+        public string? CallerId { get; set; }
+
         public Stream? Stream { get; set; }
 
         public Stopwatch CallConnectedTimer { get; set; }

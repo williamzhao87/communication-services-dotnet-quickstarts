@@ -111,6 +111,7 @@ namespace RecordingStreaming.Controllers
                                                     call_id = activeCall.CallId
                                                 }
                                             });
+                                            await _eventsService.SendRecordingStartedEvent(activeCall.CallConnectionProperties.ServerCallId);
                                         }
 
                                         if (activeCall.StartRecordingWithAnswerTimer?.IsRunning ?? false)
@@ -130,6 +131,7 @@ namespace RecordingStreaming.Controllers
                                                     call_id = activeCall.CallId
                                                 }
                                             });
+                                            await _eventsService.SendRecordingStartedEvent(activeCall.CallConnectionProperties.ServerCallId);
                                         }
 
                                         var byteArray = jsonData.AudioData?.Data;
@@ -179,8 +181,8 @@ namespace RecordingStreaming.Controllers
 
                 var blobUri = await _storageService.StreamTo(activeCall.Stream, DateTimeOffset.UtcNow.ToString("yyyy-MM-dd_H-mm-ss.wav"));
                 _logger.LogInformation($"Audio stream saved to {blobUri}");
-                // Send Recording EventGridEvent
-                // await _eventsService.SendRecordingStatusUpdatedEvent();
+                await _eventsService.SendRecordingStatusUpdatedEvent(activeCall.CallConnectionProperties.ServerCallId,
+                    activeCall.CallId, blobUri.AbsoluteUri, activeCall.RecordingId);
                 activeCall.Stream.Close();
 
                 await webSocket.CloseAsync(

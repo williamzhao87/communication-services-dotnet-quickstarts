@@ -1,5 +1,4 @@
-﻿using System.ComponentModel.DataAnnotations;
-using Azure.Communication.CallAutomation;
+﻿using Azure.Communication.CallAutomation;
 using Azure.Messaging;
 using Azure.Messaging.EventGrid;
 using Azure.Messaging.EventGrid.SystemEvents;
@@ -60,12 +59,13 @@ app.MapPost("/api/incomingCall", async (
             var callerId = incomingCallEventData.FromCommunicationIdentifier.RawId;
             var target = incomingCallEventData.ToCommunicationIdentifier.RawId;
             var serverCallId = incomingCallEventData.ServerCallId;
-            var callbackUri = new Uri(callbackUriBase + $"/api/calls/{Guid.NewGuid()}?callerId={callerId}");
+            var recordingId = Guid.NewGuid().ToString();
+            var callbackUri = new Uri(callbackUriBase + $"/api/calls/{recordingId}?callerId={callerId}");
             var pauseOnStart = builder.Configuration["PauseOnStart"] == "true";
 
-            if (target == configuration["BotMri"])
+            if (configuration["BotMri"].Split(",").Contains(target))
             {
-                var activeCall = new ActiveCall();
+                var activeCall = new ActiveCall { RecordingId = recordingId, CallerId = callerId };
                 if (!pauseOnStart)
                 {
                     activeCall.StartRecordingWithAnswerTimer = new Stopwatch();
@@ -110,13 +110,10 @@ app.MapPost("/api/incomingCall", async (
 
 #endregion
 
-#region Handle Call Connected
+#region Handle Call Automation Events
 
-app.MapPost("/api/calls/{contextId}", async (
-    [FromBody] CloudEvent[] cloudEvents,
-    [FromRoute] string contextId,
-    [Required] string callerId, ITelemetryService telemetryService,
-    IConfiguration configuration) =>
+app.MapPost("/api/calls/{recordingId}", async ([FromBody] CloudEvent[] cloudEvents, [FromRoute] string recordingId,
+    [FromQuery] string callerId, ITelemetryService telemetryService, IConfiguration configuration) =>
 {
     foreach (var cloudEvent in cloudEvents)
     {
@@ -126,7 +123,8 @@ app.MapPost("/api/calls/{contextId}", async (
 
         if (@event is CallConnected callConnected)
         {
-            var activeCall = CallContextService.GetActiveCall(callConnected.ServerCallId);
+            var serverCallId = CallContextService.CallConnectionIdsToServerCallId[callConnected.CallConnectionId];
+            var activeCall = CallContextService.GetActiveCall(serverCallId);
             var elapsedTime = activeCall.CallConnectedTimer.ElapsedMilliseconds;
             activeCall?.CallConnectedTimer?.Stop();
             app.Logger.LogInformation($"*******CALL CONNECTED elapsed milliseconds: {elapsedTime} *************");
@@ -142,15 +140,18 @@ app.MapPost("/api/calls/{contextId}", async (
                     scenario = pauseOnStart ? "RecordingMidCall" : "RecordingWithAnswer"
                 }
             });
-        } 
-        else if (@event is MediaStreamingStarted mediaStreamingStarted)
+        }
+        else if (@event is RecordingStateChanged recordingStateChanged)
         {
-            var activeCall = CallContextService.GetActiveCall(mediaStreamingStarted.ServerCallId);
-            if (activeCall.StartRecordingEventTimer?.IsRunning ?? false)
+            var serverCallId = CallContextService.CallConnectionIdsToServerCallId[recordingStateChanged.CallConnectionId];
+            var activeCall = CallContextService.GetActiveCall(serverCallId);
+            if (recordingStateChanged.State == RecordingState.Active &&
+                (activeCall.StartRecordingEventTimer?.IsRunning ?? false))
             {
                 var elapsedTime = activeCall.StartRecordingEventTimer.ElapsedMilliseconds;
                 activeCall.StartRecordingEventTimer.Stop();
-                app.Logger.LogInformation($"*******START RECORDING EVENT RECEIVED elapsed milliseconds: {elapsedTime} *************");
+                app.Logger.LogInformation(
+                    $"*******START RECORDING EVENT RECEIVED elapsed milliseconds: {elapsedTime} *************");
                 await telemetryService.LogLatenciesAsync(new[]
                 {
                     new LatencyRecord
@@ -171,12 +172,14 @@ app.MapPost("/api/calls/{contextId}", async (
         }
         else if (@event is MediaStreamingStopped mediaStreamingStopped)
         {
-            var activeCall = CallContextService.GetActiveCall(mediaStreamingStopped.ServerCallId);
+            var serverCallId = CallContextService.CallConnectionIdsToServerCallId[mediaStreamingStopped.CallConnectionId];
+            var activeCall = CallContextService.GetActiveCall(serverCallId);
             if (activeCall.StopRecordingEventTimer?.IsRunning ?? false)
             {
                 var elapsedTime = activeCall.StopRecordingEventTimer.ElapsedMilliseconds;
                 activeCall.StopRecordingEventTimer.Stop();
-                app.Logger.LogInformation($"*******STOP RECORDING EVENT RECEIVED elapsed milliseconds: {elapsedTime} *************");
+                app.Logger.LogInformation(
+                    $"*******STOP RECORDING EVENT RECEIVED elapsed milliseconds: {elapsedTime} *************");
                 await telemetryService.LogLatenciesAsync(new[]
                 {
                     new LatencyRecord
@@ -196,6 +199,7 @@ app.MapPost("/api/calls/{contextId}", async (
             CallContextService.RemoveActiveCall(callDisconnected.ServerCallId);
         }
     }
+
     return Results.Ok();
 }).Produces(StatusCodes.Status200OK);
 
@@ -243,7 +247,7 @@ app.MapPost("/api/calls/{callId}:stopRecording", async ([FromRoute] string callI
 
 #region Download Recording
 
-app.MapPost("/api/recordingDone", async ([FromBody] EventGridEvent[] eventGridEvents) =>
+app.MapPost("/api/recordingDone", async ([FromBody] EventGridEvent[] eventGridEvents, IStorageService storageService) =>
 {
     foreach (var eventGridEvent in eventGridEvents)
     {
@@ -264,9 +268,9 @@ app.MapPost("/api/recordingDone", async ([FromBody] EventGridEvent[] eventGridEv
         // Handle recording status updated event - download recording to local folder
         if (eventData is AcsRecordingFileStatusUpdatedEventData acsRecordingFileStatusUpdatedEventData)
         {
-            var recordingDownloadUri = new Uri(acsRecordingFileStatusUpdatedEventData.RecordingStorageInfo.RecordingChunks[0].ContentLocation);
-            await using var fileStream = File.Create("unmixed_recording.wav");
-            await client.GetCallRecording().DownloadToAsync(recordingDownloadUri, fileStream);
+            var recordingDownloadUri = acsRecordingFileStatusUpdatedEventData.RecordingStorageInfo.RecordingChunks[0].ContentLocation;
+            // Download media from recording location
+            await storageService.DownloadTo(recordingDownloadUri, "recording.wav");
         }
     }
     return Results.Ok();

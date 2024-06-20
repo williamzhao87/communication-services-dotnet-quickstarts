@@ -31,6 +31,8 @@ namespace RecordingStreaming.Services
                     CallConnection = activeCall.CallConnection ?? oldActiveCall.CallConnection,
                     CallConnectionProperties = activeCall.CallConnectionProperties ?? oldActiveCall.CallConnectionProperties,
                     CallId = activeCall.CallId ?? oldActiveCall.CallId,
+                    RecordingId = activeCall.RecordingId ?? oldActiveCall.RecordingId,
+                    CallerId = activeCall.CallerId ?? oldActiveCall.CallerId,
                     Stream = activeCall.Stream ?? oldActiveCall.Stream,
                     StartRecordingTimer = activeCall.StartRecordingTimer ?? oldActiveCall.StartRecordingTimer,
                     StopRecordingTimer = activeCall.StopRecordingTimer ?? oldActiveCall.StopRecordingTimer,
