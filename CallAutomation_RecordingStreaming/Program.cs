@@ -89,7 +89,6 @@ app.MapPost("/api/incomingCall", async (
                     }
                 });
 
-                // Cannot use this because MediaStreamingSubscription is currently null
                 CallContextService.MediaSubscriptionIdsToServerCallId[call.Value.CallConnectionProperties.MediaSubscriptionId] = serverCallId;
                 CallContextService.CallConnectionIdsToServerCallId[call.Value.CallConnection.CallConnectionId] = serverCallId;
                 CallContextService.CallIdsToServerCallId[call.Value.CallConnectionProperties.CorrelationId] = serverCallId;
@@ -282,6 +281,12 @@ app.UseStaticFiles(new StaticFileOptions
 {
     FileProvider = new PhysicalFileProvider(Path.Combine(builder.Environment.ContentRootPath, "audio")),
     RequestPath = "/audio"
+});
+
+app.UseStaticFiles(new StaticFileOptions
+{
+    FileProvider = new PhysicalFileProvider(Path.Combine(builder.Environment.ContentRootPath, "recordings")),
+    RequestPath = "/recordings"
 });
 
 app.MapControllers();
